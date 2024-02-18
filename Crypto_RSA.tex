@@ -1,0 +1,478 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{xcolor} % Consolidated color package
+% Define light grey color
+\definecolor{lightgrey}{gray}{0.95} % Corrected to light grey as per the latest instruction
+
+\usepackage[most]{tcolorbox} % tcolorbox with 'most' libraries loaded
+\usepackage{minted}
+\usepackage{hyperref}
+
+\usepackage{tgheros} % Sans-serif font package
+
+\usepackage{amsmath,amssymb,amsthm,textcomp}
+\usepackage{enumerate}
+\usepackage{multicol}
+\usepackage{tikz}
+
+\usepackage{geometry}
+\usepackage{times} % Times font package, consider removing if using 'fontspec' with XeLaTeX or LuaLaTeX
+\geometry{margin=1in}
+
+% Custom theorems if needed
+\newtheoremstyle{mytheor}
+    {1ex}{1ex}{\normalfont}{0pt}{\scshape}{.}{1ex}
+    {{\thmname{#1 }}{\thmnumber{#2}}{\thmnote{ (#3)}}}
+
+\theoremstyle{mytheor}
+\newtheorem{defi}{Definition}
+
+% Custom footers and headers
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textbf{}}
+\chead{}
+\rhead{}
+\lfoot{}
+\cfoot{} % Consider adding page numbers
+\rfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+%
+
+% Define unique header/footer for the first page
+\fancypagestyle{plain}{
+  \fancyhf{} % Clear header/footer
+  \lhead{\text{RSA Encryption and Digital Signatures}} % Unique left header for the first page
+  \rhead{\text{Uroosa Imtiaz}} % Right header for the first page, if needed
+  \renewcommand{\headrulewidth}{0.4pt} % Header underlining
+  \fancyfoot[]{} % Center footer, if needed
+  \setlength{\headsep}{5mm}
+}
+
+% code listing settings
+\usepackage{listings}
+\lstset{
+    language=C, % Set language to C
+    basicstyle=\ttfamily\small, % Default text style
+    aboveskip={0\baselineskip},
+    belowskip={0\baselineskip},
+    columns=fixed,
+    extendedchars=true,
+    breaklines=true,
+    tabsize=4,
+    prebreak=\raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+    frame=,
+    showtabs=false,
+    showspaces=false,
+    showstringspaces=false,
+    numbers=none,
+    numberstyle=\small,
+    stepnumber=1,
+    numbersep=10pt,
+    captionpos=t,
+    escapeinside={\%*}{*)},
+    % Default keyword style (e.g., for, while, if)
+    keywordstyle=\color[rgb]{0.133,0.545,0.133},
+    % OpenSSL-specific keyword style
+    classoffset=1, % Start a new class for OpenSSL keywords
+    morekeywords={BIGNUM, BN_new, BN_free, BN_mul, BN_sub, BN_CTX_new, BN_bn2hex, BN_hex2bn, BN_num_bits, BN_mod_inverse, OPENSSL_free, BN_value_one, BN_CTX},
+    keywordstyle=\color[rgb]{0.627,0.126,0.941}, % Different color for OpenSSL keywords
+    classoffset=0, % Revert to previous class settings
+    commentstyle=\color[rgb]{0.133,0.545,0.133},
+    stringstyle=\color[rgb]{01,0,0},
+}
+
+
+%%%----------%%%----------%%%----------%%%----------%%%
+\author{Uroosa Imtiaz}
+
+\begin{document}
+\thispagestyle{plain}
+\vspace{-4mm}
+\section*{\large 3.1: Deriving the Private Key}
+
+\noindent The RSA algorithm falls under the category of public key algorithms that are based on the integer factorization problem. Although multiplying two large prime numbers is easy, factoring their product is difficult. The security of the RSA crypto scheme is closely related to the size of its operands and the principles of modular arithmetic. Due to its computational complexity, it is primarily used for encrypting small pieces of data or generating digital signatures.\\
+
+\noindent There are two keys used in public-key cryptography: a public key for encrypting plaintext, and a private key for decrypting an encrypted message. Generally speaking, generating a private key \texttt{d} for RSA involves five steps. First, two large prime numbers \texttt{p} and \texttt{q} are chosen. The product \texttt{n = p \(\times\) q} is referred to as the modulus. Next, Euler's totient function is calculated for \texttt{n}, representing the number of relatively prime integers in \texttt{Z\(_n\)}. A public key \texttt{e} is chosen such that it is less than and relatively prime with \(\Phi(n)\). Finally, the private key \texttt{d}, the modular multiplicative inverse of \texttt{e}, is computed using the formula \texttt{d \(\cdot\) e \(\equiv\) 1 mod \(\Phi(n)\)}. \\
+
+\noindent From page 176 of Understanding Cryptography (2010) by Christof Paar et al. :
+
+\begin{tcolorbox}[colback=white,colframe=black,sharp corners, boxrule=0.5pt]
+\textbf{RSA Key Generation}
+
+\textbf{Output:} public key: $k_{\text{pub}} = (n,e)$ and private key: $k_{\text{pr}} = (d)$
+\begin{enumerate}
+    \item Choose two large primes $p$ and $q$.
+    \item Compute $n = p \cdot q$.
+    \item Compute $\Phi(n)=(p-1)(q-1)$.
+    \item Select the public exponent $e \in \{1,2,...,\Phi(n)-1\}$ such that $\gcd(e,\Phi(n)) = 1$.
+    \item Compute the private key $d$ such that $d \cdot e \equiv 1 \pmod{\Phi(n)}$.
+\end{enumerate}
+\end{tcolorbox}
+
+\vspace{2mm} % Adjust the space as needed.
+\noindent Given the values of \texttt{p} and \texttt{q}, the first step of the RSA key generation is already complete. However, storing and performing arithmetic operations on these numbers is not easy and requires a Big Number library like the BIGNUM API provided by OpenSSL. The \texttt{BN\_mul} function can be used to multiply two BIGNUM objects \texttt{p} and \texttt{q} to obtain \texttt{n}, followed by \texttt{BN\_num\_bits}, which can be used to determine the number of significant bits a BIGNUM contains. Then \texttt{BN\_sub\_word} can be used to decrement \texttt{p} and \texttt{q}, followed by \texttt{BN\_mul} to calculate \(\Phi(n)\). The final step requires the function \texttt{BN\_mod\_inverse} to perform the modular exponentiation and derive the private key.\\
+
+\lstinputlisting[title={\textbf{private\_key\_gen.c}}, language=C]{Code/private_key_gen.c}
+
+\vspace{4mm}
+\noindent The expected output is:
+
+\begin{verbatim}
+./priv_key 0x879a5ee58ade33942040f  0x3bef5e448f18ae4ff08c65 0x10001 3
+d: 0x01A87C31CA14E9E34D1CD5B8816A148E3ACD85243B09
+n: 0x01FBF5EEC7EF3A71C2754B2E0EE10767154C2053CDEB
+bits in n : 169 bits
+\end{verbatim}
+
+\noindent Therefore \\
+(1) The bit length of the modulus n is 169 bits \\
+(2) The private key d is \texttt{0x01A87C31CA14E9E34D1CD5B8816A148E3ACD85243B09}
+
+\vspace{-2mm}
+\section*{\large 3.2: Encrypting a Message}
+
+\noindent Before we encrypt the message, we must convert the ASCII string to hexadecimal, which can be done using the Python/C API and the binascii library. Then we convert the hexadecimal into a BIGNUM object using \texttt{BN\_hex2bn()}. Since the RSA encryption function below is modular exponentiation, we can use the \texttt{BN\_mod\_exp()} function to compute \(y = x^e \mod n\). It's also important to confirm that the value of \(x\) is less than or equal to the modulus \(n -1\) or else the encryption is not effective. \\
+
+\noindent From page 174 of the textbook:
+\begin{tcolorbox}[colback=white,colframe=black,sharp corners, boxrule=0.5pt]
+\textbf{RSA Encryption:} Given the public key \((n,e) = k_{\text{pub}}\) and the plaintext \(x\), the encryption function is:
+\[ y = e_{k_{\text{pub}}}(x) \equiv x^e \mod n \quad (7.1) \]
+where \(x, y \in \mathbb{Z}_n\).
+\end{tcolorbox}
+\vspace{4mm} % Adjust the space as needed.
+\noindent The python script:
+\lstinputlisting[title={\textbf{hex\_ascii.py}}, language=Python]{Code/hex_ascii.py}
+
+\vspace{4mm} % Adjust the space as needed.
+\noindent Header and code files that use the Python/C API:
+\lstinputlisting[title={\textbf{hexify\_dehexify.h}}, language=C]{Code/hexify_dehexify.h}
+\vspace{4mm} % Adjust the space as needed.
+\lstinputlisting[title={\textbf{hexify\_dehexify.c}}, language=C]{Code/hexify_dehexify.c}
+
+\vspace{4mm}
+\noindent The code which encrypts a given message:
+\vspace{4mm} % Adjust the space as needed.
+\lstinputlisting[title={\textbf{encrypt\_message.c}}, language=C]{Code/encrypt_message.c}
+
+\vspace{4mm}
+\noindent The expected output is:
+
+\begin{verbatim}
+./encrypt 'i<3crypto' $(./priv_key 0x879a5ee58ade33942040f  
+0x3bef5e448f18ae4ff08c65 0x10001 2) 0x10001
+y =  01F88D6DC82F2D6A72A5633CF78A02CE26C236AC758A
+\end{verbatim}
+
+\noindent Therefore \\
+(1) The encrypted message is \texttt{0x01F88D6DC82F2D6A72A5633CF78A02CE26C236AC758A}
+
+\vspace{-2mm}
+\section*{\large 3.2: Decrypting a Message}
+
+Decryption in RSA is the inverse of encryption, so we will continue to use \texttt{BN\_mod\_exp} for modular exponentiation, only this time it will be applied to the ciphertext and the private key (\textit{d}, \textit{n}) replaces the public key used in encryption. Before we get to that point, we need to take the ciphertext \textit{C} and convert it to a BIGNUM object using \texttt{BN\_hex2bn}. Finally, after applying the decryption function below, we can use the above python script to convert the retrieved hexadecimal plaintext into ASCII. \\
+
+\noindent From page 175 in the textbook:
+\begin{tcolorbox}[colback=white,colframe=black,sharp corners, boxrule=0.5pt]
+\textbf{RSA Decryption:} Given the private key \((d, n) = k_{\text{pr}}\) and the ciphertext \(y\), the decryption function is:
+\[ x = d_{k_{\text{pr}}}(y) \equiv y^d \mod n \quad (7.2) \]
+where \(x, y \in \mathbb{Z}_n\).
+\end{tcolorbox}
+
+\vspace{4mm}
+\noindent The code which decrypts a given encrypted message:
+\vspace{4mm} % Adjust the space as needed.
+\lstinputlisting[title={\textbf{decrypt\_message.c}}, language=C]{Code/decrypt_message.c}
+
+\vspace{4mm}
+\noindent The expected output is:
+
+\begin{verbatim}
+./decrypt $(./priv_key 0x879a5ee58ade33942040f
+0x3bef5e448f18ae4ff08c65 0x10001 4)
+0x0182c38e75c5a4889ec3c8da3602114b42e1d2cc9e58 
+x =  6F6D6567616C756C
+Decrypted message: omegalul
+\end{verbatim}
+
+\noindent Therefore \\
+(1) The decrypted message is \texttt{omegalul}
+
+\vspace{-2mm}
+\section*{\large 3.4: Signing a Message}
+
+\noindent Digital signatures use public-key cryptography, where the signer uses their private key \((d, n)\) to create a signature for a message \(x\), and appends it to the message. The receiver applies the corresponding public key \((e, n)\) to the signature and verifies it by comparing it to the message. The message can be transmitted in clear text or encrypted (using AES, for example) as the signature protocol is primarily concerned with data authentication and integrity, not confidentiality. \\
+
+\noindent Typically, a message is first compressed using a hashing function and then signed with the private key, addressing both security concerns and RSA's computational limitations for large messages. If the signature was created by signing a hash of the message, then the receiver will hash the message and compare this hash to the result obtained after applying the public key operation to the signature. In our case, we can simply apply the public key operation to the signature and compare that to the message for verification.
+
+\vspace{4mm}
+\noindent The code which generates a signature for a message:
+\vspace{4mm} % Adjust the space as needed.
+\lstinputlisting[title={\textbf{message\_signature\_gen.c}}, language=C]{Code/message_signature_gen.c}
+
+\vspace{4mm}
+\noindent The expected output is:
+
+\begin{verbatim}
+./sign $(./priv_key 0x879a5ee58ade33942040f 
+0x3bef5e448f18ae4ff08c65 0x10001 4) 'I owe you $100'
+0x0101E8B9CF2C2F0FAFF042981804D38157594FD54479
+\end{verbatim}
+
+\noindent Therefore, \\
+\\ \noindent (1) The signature generated for the message using the private key from
+step 1 is \\ \texttt{0x0101E8B9CF2C2F0FAFF042981804D38157594FD54479} \\
+
+\noindent (2) The private key or exponent was used to generate the signature. \\
+
+\noindent (3) I changed the message to \texttt{'I owe you \$100'} to \texttt{'I owe you \$200'}
+
+\vspace{4mm}
+\noindent The expected output is:
+
+\begin{verbatim}
+./sign $(./priv_key 0x879a5ee58ade33942040f 
+0x3bef5e448f18ae4ff08c65 0x10001 4) 'I owe you $200'
+0x47D8A1AAC753B4AFC113FC693202AFD89F537D3424
+\end{verbatim}
+
+\noindent The two signatures are drastically different despite only changing one letter, with no apparent pattern as the changes are diffused throughout the signature. This is expected due to the design principles of cryptographic protocols.
+
+\vspace{-2mm}
+\section*{\large 3.5: Verifying a Signature}
+
+\noindent The verification of a signature should only return true if the signature, after applying the public key operation, is equal to the message it signed. Otherwise, it should return false.
+
+\vspace{4mm}
+\noindent The code that verifies a signature for a message:
+\vspace{4mm} % Adjust the space as needed.
+\lstinputlisting[title={\textbf{verify\_signature.c}}, language=C]{Code/verify_signature.c}
+
+\vspace{4mm}
+\noindent The expected output is:
+
+\begin{verbatim}
+./verify 'Launch a missile.' 
+0x643d6f34902d9c7ec90cb0b2bca36c47fa37165c0005cab026c0542cbdb6802f
+0x010001
+0xae1cd4dc432798d933779fbd46c6e1247f0cf1233595113aa51b450f18116115
+True
+\end{verbatim}
+
+\noindent Therefore, \\
+\\ \noindent (1) The verification of the signature for the given message returned true \\
+\\ \noindent (2) Changing one bit (for example, 2F to 3F in the last byte) will corrupt the signature, so it should return false.
+
+\vspace{4mm}
+\noindent The expected output is:
+
+\begin{verbatim}
+./verify 'Launch a missile.'
+0x643d6f34902d9c7ec90cb0b2bca36c47fa37165c0005cab026c0542cbdb6803f
+0x010001
+0xae1cd4dc432798d933779fbd46c6e1247f0cf1233595113aa51b450f18116115
+False
+\end{verbatim}
+\vspace{-4mm}
+\section*{\large 3.6: Cracking an RSA Private Key}
+
+Most, if not all, of the libraries available for integer factorization require the integer to be expressed in decimal. A simple script to accomplish this is given here (you will need to install the command bc):
+
+\vspace{4mm} % Adjust the space as needed.
+\lstinputlisting[title={\textbf{hex\_to\_dec.sh}}, language=BASH]{Code/hex_to_dec.sh} 
+\vspace{4mm}
+\noindent This will be used alongside the integer factorization library and private\_key\_gen.c from 3.1 to crack the corresponding RSA private key for each of the following public keys. \\
+
+\noindent (1) The modulus \texttt{n = 0x7c5cfe617c286a27ffc10ecf88a8d35ebbf1e30320af} is converted to decimal:
+
+\begin{verbatim}
+./hex_to_dec.sh 0x7c5cfe617c286a27ffc10ecf88a8d35ebbf1e30320af
+Decimal equivalent:
+46529818383710374672711659156505490446378563486818479
+\end{verbatim}
+
+
+\noindent The two prime factors of the modulus are found using the YAFU (Yet Another Factoring Utility) library:
+\begin{verbatim}
+YAFU Version 2.11
+Built with GCC 11
+Using GMP-ECM 7.0.6-dev, Powered by GMP 6.3.0
+Detected Intel(R) Core(TM) i5-8257U CPU @ 1.40GHz
+Detected L1 = 32768 bytes, L2 = 6291456 bytes, CL = 64 bytes
+CPU features enabled: 
+Using 1 random witness for Rabin-Miller PRP checks
+Cached 664579 primes; max prime is 9999991
+Parsed yafu.ini from /Math/yafu
+
+===============================================================
+======= Welcome to YAFU (Yet Another Factoring Utility) =======
+=======             bbuhrow@gmail.com                   =======
+=======     Type help at any time, or quit to quit      =======
+===============================================================
+
+>> factor(46529818383710374672711659156505490446378563486818479)
+fac: factoring 46529818383710374672711659156505490446378563486818479
+fac: using pretesting plan: normal
+fac: using specified qs/gnfs crossover of 100 digits
+fac: using specified qs/snfs crossover of 75 digits
+div: primes less than 10000
+fmt: 1000000 iterations
+rho: x^2 + 3, starting 1000 iterations on C53 
+rho: x^2 + 2, starting 1000 iterations on C53 
+rho: x^2 + 1, starting 1000 iterations on C53 
+pm1: starting B1 = 150K, B2 = gmp-ecm default on C53
+ecm: 30/30 curves on C53, B1=2k, B2=gmp-ecm default
+ecm: 18/18 curves on C53, B1=11k, B2=gmp-ecm default
+
+starting SIQS on c53: 46529818383710374672711659156505490446378563486818479
+
+==== sieving in progress (  2 threads):    1952 relations needed ====
+====             Press ctrl-c to abort and save state            ====
+1979 rels found: 921 full + 1058 from 9813 partial, (30301.32 rels/sec)
+
+building matrix with 1979 columns
+SIQS elapsed time = 0.4030 seconds.
+Total factoring time = 1.1992 seconds
+
+
+***factors found***
+
+P27 = 293906828378037345736457113
+P27 = 158314859986381280032123783
+
+ans = 1
+
+\end{verbatim}
+
+\noindent The corresponding RSA private key can be found now, via private\_key\_gen.c:
+\begin{verbatim}
+./priv_key $(echo "obase=16; ibase=10;
+293906828378037345736457113" | bc |
+awk '{print "0x" $0}') $(echo "obase=16; ibase=10; 
+158314859986381280032123783" | bc | awk '{print "0x" $0}') 0x10001 1
+0x39C1E2AE99C017554E557582B85DCA21843C2BFCDDD1
+\end{verbatim}
+
+\noindent (2) The modulus \texttt{n = 0x1e6f1558fe63761406be065a9e07b060f8360b2725b09f4071} is converted to decimal:
+
+\begin{verbatim}
+./hex_to_dec.sh 0x1e6f1558fe63761406be065a9e07b060f8360b2725b09f4071
+Decimal equivalent: 1910368088390737529980599707373478603429176764321
+72452364401
+\end{verbatim}
+
+\noindent The two prime factors of the modulus are found using the YAFU (Yet Another Factoring Utility) library:
+\begin{verbatim}
+YAFU Version 2.11
+Built with GCC 11
+Using GMP-ECM 7.0.6-dev, Powered by GMP 6.3.0
+Detected Intel(R) Core(TM) i5-8257U CPU @ 1.40GHz
+Detected L1 = 32768 bytes, L2 = 6291456 bytes, CL = 64 bytes
+CPU features enabled: 
+Using 1 random witness for Rabin-Miller PRP checks
+Cached 664579 primes; max prime is 9999991
+Parsed yafu.ini from /Math/yafu
+
+===============================================================
+======= Welcome to YAFU (Yet Another Factoring Utility) =======
+=======             bbuhrow@gmail.com                   =======
+=======     Type help at any time, or quit to quit      =======
+===============================================================
+
+>> factor(191036808839073752998059970737347860342917676432172452364401)
+fac: factoring 191036808839073752998059970737347860342917676432172452364401
+fac: using pretesting plan: normal
+fac: using specified qs/gnfs crossover of 100 digits
+fac: using specified qs/snfs crossover of 75 digits
+div: primes less than 10000
+fmt: 1000000 iterations
+rho: x^2 + 3, starting 1000 iterations on C60 
+rho: x^2 + 2, starting 1000 iterations on C60 
+rho: x^2 + 1, starting 1000 iterations on C60 
+pm1: starting B1 = 150K, B2 = gmp-ecm default on C60
+ecm: 30/30 curves on C60, B1=2k, B2=gmp-ecm default
+ecm: 49/49 curves on C60, B1=11k, B2=gmp-ecm default
+
+starting SIQS on c60: 191036808839073752998059970737347860342917676432172452364401
+
+==== sieving in progress (  2 threads):    3504 relations needed ====
+====             Press ctrl-c to abort and save state            ====
+3535 rels found: 1743 full + 1792 from 17230 partial, (16901.64 rels/sec)
+
+building matrix with 3535 columns
+SIQS elapsed time = 1.2130 seconds.
+Total factoring time = 2.6347 seconds
+
+
+***factors found***
+
+P30 = 335403766841212825761913864577
+P30 = 569572639682113597061986473713
+
+ans = 1
+\end{verbatim}
+
+\noindent The corresponding RSA private key can be found now, via private\_key\_gen.c:
+\begin{verbatim}
+./priv_key $(echo "obase=16; ibase=10;
+335403766841212825761913864577" | bc |
+awk '{print "0x" $0}') $(echo "obase=16; ibase=10; 
+569572639682113597061986473713" | bc | awk '{print "0x" $0}') 0x10001 1
+0x06C5DFF15B43D54E65A5BA9243985CA4E0F3C03FFCCA3E2801
+\end{verbatim}
+
+(3) The modulus \texttt{n = 0x3bb8210adb66a6a26e0bcb4837a1dd1ddd605e4295f592631c0
+6358734e627261718681cbdf7} is converted to decimal:
+
+\begin{verbatim}
+./hex_to_dec.sh 0x3bb8210adb66a6a26e0bcb4837a1dd1ddd605e4295f592631c063
+58734e627261718681cbdf7
+Decimal equivalent: 760314182869541909192306679884601127330067391488593
+7042839246377767858544201384909206240759
+\end{verbatim}
+
+\noindent The two prime factors of the modulus are found using the CADO-NFS library:
+\begin{verbatim}
+/Math/cado-nfs# ./cado-nfs.py 760314182869541909192306679884601127330067
+3914885937042839246377767858544201384909206240759
+Info:root: Using default parameter file ./parameters/factor/params.c90
+Info:root: No database exists yet
+Info:root: Created temporary directory /tmp/cado.jzg09pb_
+Info:Database: Opened connection to database /tmp/cado.jzg09pb_/c90.db
+Info:root: Set tasks.linalg.bwc.threads=8 based on detected physical cores
+Info:root: Set tasks.threads=8 based on detected logical cpus
+Info:root: tasks.threads = 8 [via tasks.threads]
+Info:root: tasks.polyselect.threads = 2 [via tasks.polyselect.threads]
+Info:root: tasks.sieve.las.threads = 2 [via tasks.sieve.las.threads]
+Info:root: tasks.linalg.bwc.threads = 8 [via tasks.linalg.bwc.threads]
+Info:root: tasks.sqrt.threads = 8 [via tasks.threads]
+
+...
+Info:Complete Factorization / Discrete logarithm: Total cpu/elapsed time 
+for entire Complete Factorization 8469.75/1964.84
+Info:root: Cleaning up computation data in /tmp/cado.jzg09pb_
+4903807314951958579982050968628301950233945557
+1550456887959902487012230947884637270541368987
+\end{verbatim}
+
+\noindent The corresponding RSA private key can be found now, via private\_key\_gen.c:
+\begin{verbatim}
+./priv_key $(echo "obase=16; ibase=10; 490380731495195857998205096862830
+1950233945557" | bc | awk '{print "0x" $0}') $(echo "obase=16; ibase=10;
+1550456887959902487012230947884637270541368987" | bc | awk '{print "0x" $0}')
+0x10001 1
+0x0B49CED5228BD0CBBB49776F7B34997B5FB12B696D89F0C8BE10DE9C5CCF0BDA2DD29F4E7921
+\end{verbatim}
+
+\noindent (4) I started off with a tool called YAFU, which appeared to be the most popular integer-factorization tool. I was able to follow the instructions here: \href{https://ftp.mersenneforum.org/showthread.php?t=23087}{https://ftp.mersenneforum.org/showthread.php?t=23087}
+ regarding installion which involved several repositories for different factorization methods. \\
+ It was very fast for 3.6.1 and 3.6.2, with times of 1.1992 seconds for the first modulus and 2.6347 seconds for the second one. \\
+ \\However, I soon ran into problems when trying to use YAFU on my virtual machine, as it took significantly longer to factor the final modulus. As it would freeze near the end, I decided to find a new method. I settled on CADO-NFS, which is another integer-factorization tool/library which has been used to solve several RSA factorization challenges. I again followed the installation instructions on the same site, \href{https://www.mersenneforum.org/showthread.php?t=23089}{https://www.mersenneforum.org/showthread.php?t=23089}. This took much less time than it would take using YAFU, as it was using the NFS (Number Field Sieve) Algorithm which is the fastest algorithm and suited towards larger integers. Nevertheless, it took 1964.84 seconds.
+ \\ My computer's specifications are a 1.4 GHz Quad-Core Intel Core i5 processor and 8 GB of RAM. It appears that the cracking time (if we are to compare across different tools/factorization methods) does not increase linearly with integer size. It is likely exponential, since there is no known polynomial-time algorithm for integer factorization.
+
+\end{document}
